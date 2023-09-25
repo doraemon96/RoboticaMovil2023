@@ -1,0 +1,2 @@
+numpy
+rosbags==0.9.16
