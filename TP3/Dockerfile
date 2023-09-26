@@ -26,8 +26,6 @@ RUN apt-get update && \
     ros-humble-demo-nodes-py && \
     rm -rf /var/lib/apt/lists/*
 
-RUN PYTHONWARNINGS="ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources" && export PYTHONWARNINGS
-
 #RUN apt-get install -y software-properties-common
 #RUN add-apt-repository ppa:deadsnakes/ppa -y
 #RUN apt-get install python3.8 python3.8-dev python3.8-venv
@@ -36,3 +34,5 @@ RUN ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash"]
 
 USER duser
 WORKDIR /home/duser
+
+RUN export PYTHONWARNINGS="ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources"
