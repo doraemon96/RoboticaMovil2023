@@ -25,6 +25,7 @@ def write_images(bagwriter, image_folder, csv_path, topic='/camera', frameid='ca
 
     conn = bagwriter.add_connection(topic, Image.__msgtype__)
     for path, timestamp in timestamped_images:
+        img = cv2.imread(path.as_posix(), 0)
         message = Image(
                 Header(
                     stamp=Time(
@@ -33,40 +34,12 @@ def write_images(bagwriter, image_folder, csv_path, topic='/camera', frameid='ca
                     ),
                     frame_id=frameid,
                 ),
-                width=752,
-                height=480,
-                encoding='rgb8',
+                width=img.shape[1],
+                height=img.shape[0],
+                encoding='mono8',
                 is_bigendian=0,
-                step=3 * 752,  # FIXME
-                data=np.fromfile(path, dtype=np.uint8), # FIXME Doesn't work
-            )
-        bagwriter.write(
-            conn,
-            timestamp,
-            serialize_cdr(message, message.__msgtype__),
-        )
-
-
-def write_compressed_images(bagwriter, image_folder, csv_path, topic='/camera', frameid='camera'):
-
-    timestamped_images = list()
-    with open(csv_path, 'r', newline='') as csvfile:
-        csvreader = csv.DictReader(csvfile)
-        for row in csvreader:
-            timestamped_images.append((image_folder / row['filename'], int(row['#timestamp [ns]'])))
-
-    conn = bagwriter.add_connection(topic, CompressedImage.__msgtype__)
-    for path, timestamp in timestamped_images:
-        message = CompressedImage(
-                Header(
-                    stamp=Time(
-                        sec=int(timestamp // 10**9),
-                        nanosec=int(timestamp % 10**9),
-                    ),
-                    frame_id=frameid,
-                ),
-                format='png',
-                data=np.fromfile(path, dtype=np.uint8), # FIXME
+                step=img.shape[1],
+                data=img.flatten(),
             )
         bagwriter.write(
             conn,
@@ -97,8 +70,7 @@ if __name__ == '__main__':
     cam1_csv = (args.folder / 'mav0/cam1/data.csv')
 
     with r2.Writer(args.outfile) as bagwriter:
-        write_compressed_images(bagwriter, cam0_images, cam0_csv, topic='/cam0/')
-
-        write_compressed_images(bagwriter, cam1_images, cam1_csv, topic='/cam1/')
+        write_images(bagwriter, cam0_images, cam0_csv, topic='/cam0/')
+        write_images(bagwriter, cam1_images, cam1_csv, topic='/cam1/')
 
     print(f'Bag has been written to {args.outfile} successfully!')
