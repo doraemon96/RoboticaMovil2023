@@ -31,7 +31,7 @@ y se deben descargar y descomprimir dentro de la carpeta `EuRoC/`
 El archivo `Dockerfile` provee comandos para levantar un contenedor Docker.
 Para compilar el contenedor se tiene que tener Docker instalado ([instrucciones](https://docs.docker.com/engine/install/ubuntu/)) y correr el siguiente comando:
 ```bash
-docker build --rm -t "ros2:humble_with_gazebo" .
+docker build --build-arg USER_ID=$(id -u ${USER}) --build-arg GROUP_ID=$(id -g ${USER}) --rm -t "ros2:humble_with_gazebo" .
 ```
 (donde `--rm` remueve contenedores intermedios luego de terminar la compilacián, y `-t` le da un nombre a nuestro contenedor).
 
@@ -43,7 +43,7 @@ docker run --rm -it --net=host --volume="`pwd`:/root/dev_ws:rw" ros2:humble_with
 - o con interfaz gráfica:
 ```bash
 xhost +local:root
-docker run --rm -it --net=host --privileged --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --volume="`pwd`:/root/dev_ws:rw" ros2:humble_with_gazebo
+docker run --rm -it --net=host --privileged --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --volume="`pwd`:/home/duser:rw" ros2:humble_with_gazebo
 xhost -local:root
 ```
 
