@@ -70,7 +70,7 @@ if __name__ == '__main__':
     cam1_csv = (args.folder / 'mav0/cam1/data.csv')
 
     with r2.Writer(args.outfile) as bagwriter:
-        write_images(bagwriter, cam0_images, cam0_csv, topic='/cam0/')
-        write_images(bagwriter, cam1_images, cam1_csv, topic='/cam1/')
+        write_images(bagwriter, cam0_images, cam0_csv, topic='/cam0')
+        write_images(bagwriter, cam1_images, cam1_csv, topic='/cam1')
 
     print(f'Bag has been written to {args.outfile} successfully!')

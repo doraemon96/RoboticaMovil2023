@@ -1,32 +1,5 @@
 # Robotica Movil 2023 - Trabajo Practico 3
 
-
-## Archivos
-
-Existe un script para descargar automáticamente los archivos de calibración y correr la conversión a Rosbag2:
-
-```
-# Se debe encontrar en el root del repositorio
-
-# Primero creamos un entorno virtual para python3
-sudo apt install python3-venv && \
-    python3 -m venv venv && \
-    . venv/bin/activate && \
-    pip3 install -r requirements.txt
-
-# Luego ejecutamos la descarga de los archivos de calibración
-./download_calibration.sh
-
-# Finalmente ejecutamos el script de conversión a rosbag2
-python3 create_calibration_rosbag2.py && \
-    deactivate
-```
-
-Los datasets que no conicernen a calibración se encuentran en formato ROSBAG2 directamente desde la página oficial:  
-https://docs.openvins.com/gs-datasets.html#gs-data-euroc  
-y se deben descargar y descomprimir dentro de la carpeta `EuRoC/`
-
-
 ## Docker
 El archivo `Dockerfile` provee comandos para levantar un contenedor Docker.
 Para compilar el contenedor se tiene que tener Docker instalado ([instrucciones](https://docs.docker.com/engine/install/ubuntu/)) y correr el siguiente comando:
@@ -42,9 +15,9 @@ docker run --rm -it --net=host --volume="`pwd`:/root/dev_ws:rw" ros2:humble_with
 ```
 - o con interfaz gráfica:
 ```bash
-xhost +local:root
-docker run --rm -it --net=host --privileged --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --volume="`pwd`:/home/duser:rw" ros2:humble_with_gazebo
-xhost -local:root
+xhost +local:root &&\
+docker run --rm -it --net=host --privileged --env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --volume="`pwd`:/home/duser:rw" ros2:humble_with_gazebo &&\
+xhost -local:root 
 ```
 
 Luego de levantado el contenedor podemos conectarnos con multiples terminales de la siguiente forma:
@@ -57,6 +30,44 @@ Para salir de una terminal se puede terminar la misma con C^D o con el comando `
 _(se agradece a Roman Comelli por sus contribuciones respecto a la creación del contenedor)_
 
 
-## Ejecución
+## Calibración
 
-To-Do
+Existe un script para descargar automáticamente los archivos de calibración y correr la conversión a Rosbag2:
+
+```
+# Se debe encontrar en el root del repositorio
+
+# Primero creamos un entorno virtual para python3
+sudo apt update && \
+    sudo apt install -y python3-venv && \
+    python3 -m venv venv && \
+    . venv/bin/activate && \
+    pip3 install -r requirements.txt
+
+# Luego ejecutamos la descarga de los archivos de calibración
+./download_calibration.sh
+
+# Finalmente ejecutamos el script de conversión a rosbag2
+python3 create_calibration_rosbag2.py && \
+    deactivate
+```
+
+Para calibrar corremos la rutina de calibración:
+```bash
+ros2 run camera_calibration cameracalibrator --approximate 0.1 --size 7x6 --square 0.108 --ros-args -r righ
+t:=/cam0 -r left:=/cam1 -r right_camera:=/cam0 -r left_camera:=/cam1
+```
+y en otra terminal reproducimos nuestro rosbag
+```bash
+ros2 bag play --disable-keyboard-controls ./EuRoC/cam_checkerboard/cam_checkerboard_rosbag2
+```
+deberíamos terminar con más de 100 samples para calibrar. Luego pulsamos "Calibrate". 
+Tener en cuenta que la calibración puede durar varios minutos y la ventana puede dejar de responder (recomendamos tener paciencia).
+
+Finalmente clickeamos "Save" para guardar los datos, y ejecutar el comando:
+```bash
+cd EuRoC/cam_checkerboard &&\
+mv /tmp/calibrationdata.tar.gz . &&\
+tar -xf calibrationdata.tar.gz right.yaml left.yaml
+```
+para mover los archivos generados y extraer lo necesario.

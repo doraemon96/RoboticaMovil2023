@@ -13,17 +13,20 @@ RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    lsb-release \
-    wget \
-    gnupg \
-    ros-humble-turtlesim \
-    ros-humble-rqt* \
-    ros-humble-navigation2 \
-    ros-humble-nav2-bringup \
-    ros-humble-turtlebot3* \
-    ros-humble-gazebo-* \
-    ros-humble-demo-nodes-cpp \
-    ros-humble-demo-nodes-py && \
+        lsb-release \
+        wget \
+        gnupg \
+        ros-humble-turtlesim \
+        ros-humble-rqt* \
+        ros-humble-navigation2 \
+        ros-humble-nav2-bringup \
+        ros-humble-turtlebot3* \
+        ros-humble-gazebo-* \
+        ros-humble-demo-nodes-cpp \
+        ros-humble-demo-nodes-py \
+        python3-venv \
+        libcanberra-gtk-module \
+        libcanberra-gtk3-module && \
     rm -rf /var/lib/apt/lists/*
 
 #RUN apt-get install -y software-properties-common
