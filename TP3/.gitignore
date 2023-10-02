@@ -1,6 +1,9 @@
 # EuRoC files
 EuRoC/
 
+# ROS2 non-commiting files
+log/
+install/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
