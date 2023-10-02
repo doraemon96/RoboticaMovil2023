@@ -5,10 +5,10 @@ import rclpy
 import yaml
 
 
-IMAGE_LEFT = '/left/image_rect'
+IMAGE_LEFT = '/cam0'
 LEFT_CALIB_PATH = 'EuRoC/cam_checkerboard/left.yaml'
 
-IMAGE_RIGHT= '/right/image_rect'
+IMAGE_RIGHT= '/cam1'
 RIGHT_CALIB_PATH = 'EuRoC/cam_checkerboard/right.yaml'
 
 
@@ -50,24 +50,36 @@ def calib_from_yaml(yaml_file):
 class Synchronized_Images_Publisher(Node):
 
     def __init__(self):
-        super().__init__('img_sync')
+        super().__init__('stereo_sync')
         self.p_left_img = self.create_publisher(Image, 'left_sync/image', 10)
         self.p_right_img = self.create_publisher(Image, 'right_sync/image', 10)
         self.p_left_info = self.create_publisher(CameraInfo, 'left_sync/camera_info', 10)
         self.p_right_info = self.create_publisher(CameraInfo, 'right_sync/camera_info', 10)
 
     def stereo_sync_callback(self, left_msg, right_msg):
-
         self.p_left_img.publish(left_msg)
         self.p_right_img.publish(right_msg)  # TODO: change timestamp
 
-        left_info = CameraInfo(
-            left_msg.header, left_msg.height, left_msg.width, DISTORTION_MODEL,
-            COEFFS_LEFT, INTRINSIC_LEFT, RECTIFICATION_LEFT, PROJECTION_LEFT)
+        left_info = CameraInfo()
+        left_info.header = left_msg.header
+        left_info.height = left_msg.height
+        left_info.width = left_msg.width
+        left_info.distortion_model = DISTORTION_MODEL
+        left_info.d = COEFFS_LEFT
+        left_info.k = INTRINSIC_LEFT
+        left_info.r = RECTIFICATION_LEFT
+        left_info.p = PROJECTION_LEFT
         self.p_left_info.publish(left_info)
-        right_info = CameraInfo(
-            right_msg.header, right_msg.height, right_msg.width, DISTORTION_MODEL,
-            COEFFS_RIGHT, INTRINSIC_RIGHT, RECTIFICATION_RIGHT, PROJECTION_RIGHT)
+
+        right_info = CameraInfo()
+        left_info.header = right_msg.header
+        left_info.height = right_msg.height
+        left_info.width = right_msg.width
+        left_info.distortion_model = DISTORTION_MODEL
+        left_info.d = COEFFS_RIGHT
+        left_info.k = INTRINSIC_RIGHT
+        left_info.r = RECTIFICATION_RIGHT
+        left_info.p = PROJECTION_RIGHT
         self.p_right_info.publish(right_info)
 
 
