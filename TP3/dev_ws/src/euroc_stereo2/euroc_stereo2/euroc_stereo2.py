@@ -11,41 +11,25 @@ LEFT_CALIB_PATH = 'EuRoC/cam_checkerboard/left.yaml'
 IMAGE_RIGHT= '/cam1'
 RIGHT_CALIB_PATH = 'EuRoC/cam_checkerboard/right.yaml'
 
-
-DISTORTION_MODEL = 'plumb_bob'
-COEFFS_LEFT = [-0.285090, 0.075403, -0.000220, 0.000126, 0.000000]
-INTRINSIC_LEFT = [461.25937,   0.     , 373.16481,
-           0.     , 460.33945, 253.00413,
-           0.     ,   0.     ,   1.     ]
-RECTIFICATION_LEFT = [ 0.99988043, -0.00377949, -0.01499454,
-          0.00368102,  0.99997152, -0.00658915,
-          0.01501902,  0.00653317,  0.99986586]
-PROJECTION_LEFT = [439.42818,   0.     , 376.25239,   0.     ,
-           0.     , 439.42818, 253.53939,   0.     ,
-           0.     ,   0.     ,   1.     ,   0.     ]
-COEFFS_RIGHT = [-0.283986, 0.074247, 0.000279, 0.000045, 0.000000]
-INTRINSIC_RIGHT = [461.84918,   0.     , 364.83964,
-           0.     , 460.57497, 245.71597,
-           0.     ,   0.     ,   1.     ]
-RECTIFICATION_RIGHT = [ 0.99998727, -0.00113856, -0.00491501,
-          0.00117079,  0.99997781,  0.0065585 ,
-          0.00490744, -0.00656417,  0.99996641]
-PROJECTION_RIGHT = [439.42818,   0.     , 376.25239,  86.67236,
-           0.     , 439.42818, 253.53939,   0.     ,
-           0.     ,   0.     ,   1.     ,   0.     ]
+class CalibData:
+    def __init__(self, interinsic, distortion_model, distortion_coeffs,
+                 rectification, projection):
+        self.interinsic = interinsic
+        self.distortion_model = distortion_model
+        self.distortion_coeffs = distortion_coeffs
+        self.rectification = rectification
+        self.projection = projection
 
 def calib_from_yaml(yaml_file):
     with open(yaml_file, 'r') as f:
         calib_yml = yaml.load(f, yaml.SafeLoader)
     
-    intrinsic = calib_yml['camera_matrix']['data']
-    coeffs = calib_yml['distortion_coefficients']['data']
-    size = (calib_yml['image_width'],calib_yml['image_height'])
-    stereo_rot = calib_yml['projection_matrix']['data']
-    stereo_trans = None
-
-    return intrinsic, coeffs, size, stereo_rot, stereo_trans
-
+    calib_data = CalibData(calib_yml['camera_matrix']['data'],
+                          calib_yml['distortion_model'],
+                          calib_yml['distortion_coefficients']['data'],
+                          calib_yml['rectification_matrix']['data'],
+                          calib_yml['projection_matrix']['data'])
+    return calib_data
 
 class Synchronized_Images_Publisher(Node):
 
@@ -55,31 +39,34 @@ class Synchronized_Images_Publisher(Node):
         self.p_right_img = self.create_publisher(Image, 'right_sync/image', 10)
         self.p_left_info = self.create_publisher(CameraInfo, 'left_sync/camera_info', 10)
         self.p_right_info = self.create_publisher(CameraInfo, 'right_sync/camera_info', 10)
+        self.left_calib = calib_from_yaml(LEFT_CALIB_PATH)
+        self.right_calib = calib_from_yaml(RIGHT_CALIB_PATH)
 
     def stereo_sync_callback(self, left_msg, right_msg):
         self.p_left_img.publish(left_msg)
-        self.p_right_img.publish(right_msg)  # TODO: change timestamp
+        right_msg.header.stamp = left_msg.header.stamp 
+        self.p_right_img.publish(right_msg) 
 
         left_info = CameraInfo()
         left_info.header = left_msg.header
         left_info.height = left_msg.height
         left_info.width = left_msg.width
-        left_info.distortion_model = DISTORTION_MODEL
-        left_info.d = COEFFS_LEFT
-        left_info.k = INTRINSIC_LEFT
-        left_info.r = RECTIFICATION_LEFT
-        left_info.p = PROJECTION_LEFT
+        left_info.distortion_model = self.left_calib.distortion_model
+        left_info.d = self.left_calib.distortion_coeffs
+        left_info.k = self.left_calib.interinsic
+        left_info.r = self.left_calib.rectification
+        left_info.p = self.left_calib.projection
         self.p_left_info.publish(left_info)
 
         right_info = CameraInfo()
-        left_info.header = right_msg.header
-        left_info.height = right_msg.height
-        left_info.width = right_msg.width
-        left_info.distortion_model = DISTORTION_MODEL
-        left_info.d = COEFFS_RIGHT
-        left_info.k = INTRINSIC_RIGHT
-        left_info.r = RECTIFICATION_RIGHT
-        left_info.p = PROJECTION_RIGHT
+        right_info.header = right_msg.header
+        right_info.height = right_msg.height
+        right_info.width = right_msg.width
+        right_info.distortion_model = self.right_calib.distortion_model
+        right_info.d = self.right_calib.distortion_coeffs
+        right_info.k = self.right_calib.interinsic
+        right_info.r = self.right_calib.rectification
+        right_info.p = self.right_calib.projection
         self.p_right_info.publish(right_info)
 
 
