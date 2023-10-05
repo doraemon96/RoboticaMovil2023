@@ -1,17 +1,17 @@
 # Robotica Movil 2023 - Trabajo Practico 3
 
 ## Docker
-El archivo `Dockerfile` provee comandos para levantar un contenedor Docker.
-Para compilar el contenedor se tiene que tener Docker instalado ([instrucciones](https://docs.docker.com/engine/install/ubuntu/)) y correr el siguiente comando:
+El archivo `Dockerfile` provee comandos para crear una imagen en Docker.
+Para compilar la imagen se tiene que tener Docker instalado ([instrucciones](https://docs.docker.com/engine/install/ubuntu/)) y correr el siguiente comando:
 ```bash
 docker build --build-arg USER_ID=$(id -u ${USER}) --build-arg GROUP_ID=$(id -g ${USER}) --rm -t "ros2:humble_with_gazebo" .
 ```
-(donde `--rm` remueve contenedores intermedios luego de terminar la compilacián, y `-t` le da un nombre a nuestro contenedor).
+(donde `--rm` remueve contenedores intermedios luego de terminar la compilación, y `-t` le da un nombre a nuestra imagen).
 
-Luego se puede levantar el contenedor:
+Luego, se puede levantar el contenedor:
 - en forma headless (sin gráficos)
 ```bash
-docker run --rm -it --net=host --volume="`pwd`:/root/dev_ws:rw" ros2:humble_with_gazebo
+docker run --rm -it --net=host --volume="`pwd`:/home/duser:rw" ros2:humble_with_gazebo
 ```
 - o con interfaz gráfica:
 ```bash
@@ -20,7 +20,7 @@ docker run --rm -it --net=host --privileged --env="DISPLAY" --env="QT_X11_NO_MIT
 xhost -local:root 
 ```
 
-Luego de levantado el contenedor podemos conectarnos con multiples terminales de la siguiente forma:
+Luego de levantado el contenedor podemos conectarnos con múltiples terminales de la siguiente forma:
 ```bash
 docker exec -it `docker ps | awk '/ros2:humble_with_gazebo/ { print $1 }'` bash
 ```
@@ -52,19 +52,18 @@ python3 create_calibration_rosbag2.py && \
     deactivate
 ```
 
-Para calibrar corremos la rutina de calibración:
+Para calibrar, corremos la rutina de calibración desde una terminal en el contenedor:
 ```bash
-ros2 run camera_calibration cameracalibrator --approximate 0.1 --size 7x6 --square 0.108 --ros-args -r righ
-t:=/cam0 -r left:=/cam1 -r right_camera:=/cam0 -r left_camera:=/cam1
+ros2 run camera_calibration cameracalibrator --approximate 0.1 --size 7x6 --square 0.108 --ros-args -r right:=/cam0 -r left:=/cam1 -r right_camera:=/cam0 -r left_camera:=/cam1
 ```
-y en otra terminal reproducimos nuestro rosbag
+y en otra terminal del contenedor reproducimos nuestro rosbag
 ```bash
 ros2 bag play --disable-keyboard-controls ./EuRoC/cam_checkerboard/cam_checkerboard_rosbag2
 ```
-deberíamos terminar con más de 100 samples para calibrar. Luego pulsamos "Calibrate". 
+Deberíamos terminar con más de 100 samples para calibrar. Luego, pulsamos "Calibrate". 
 Tener en cuenta que la calibración puede durar varios minutos y la ventana puede dejar de responder (recomendamos tener paciencia).
 
-Finalmente clickeamos "Save" para guardar los datos, y ejecutar el comando:
+Finalmente, clickeamos "Save" para guardar los datos, y ejecutamos el comando:
 ```bash
 cd EuRoC/cam_checkerboard &&\
 mv /tmp/calibrationdata.tar.gz . &&\
