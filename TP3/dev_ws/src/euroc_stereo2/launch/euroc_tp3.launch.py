@@ -24,9 +24,13 @@ def generate_launch_description():
             executable='sync',
             remappings=[
                 ('left_sync/image', '/left/image_raw'),
-                ('left_sync/camera_info', '/left/camera_infom1'),
+                ('left_sync/camera_info', '/left/camera_info'),
                 ('right_sync/image', '/right/image_raw'),
                 ('right_sync/camera_info', '/right/camera_info'),
             ],
+        ),
+        Node(
+            package='euroc_stereo2',
+            executable='features',
         )
     ])

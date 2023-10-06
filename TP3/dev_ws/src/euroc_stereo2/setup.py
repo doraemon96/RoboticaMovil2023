@@ -24,7 +24,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'sync = euroc_stereo2.sync:main'
+            'sync = euroc_stereo2.sync:main',
+            'features = euroc_stereo2.features:main'
         ],
     },
 )
