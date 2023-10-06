@@ -16,15 +16,14 @@ class Features_Node(Node):
 
     def __init__(self):
         super().__init__('features_match')
-        # self.sub_img = self.create_subscription(Image, 'left_sync/image',
-        #                                       self.listener_callback, 10)
-        # self.p_right_img = self.create_publisher(Image, 'right_sync/image', 10)
-        # self.p_left_info = self.create_publisher(CameraInfo, 'left_sync/camera_info', 10)
-        # self.p_right_info = self.create_publisher(CameraInfo, 'right_sync/camera_info', 10)
         self.br = CvBridge()
         self.orb = cv.ORB_create()
         self.bfmatcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
-    
+        self.figure_all, self.ax_all = plt.subplots()
+        self.ax_all.set_title('All Matches')
+        self.figure_good, self.ax_good = plt.subplots()
+        self.ax_good.set_title('Matches with distance < 30')
+            
     def features_callback(self, left_msg, right_msg):
         left_img = self.br.imgmsg_to_cv2(left_msg)
         right_img = self.br.imgmsg_to_cv2(right_msg)
@@ -43,11 +42,36 @@ class Features_Node(Node):
             flags = 2)
         
         img_matched = cv.drawMatches(left_img,left_kp,right_img,right_kp,matches,None,**draw_params)
-        plt.imshow(img_matched, 'gray'), plt.show() # TODO: update figure
+        
+        # Draw all matches
+        if hasattr(self,'img_all'):
+            self.img_all.set_data(img_matched)
+        else:
+            self.img_all = self.ax_all.imshow(img_matched, 'gray')
+            
+        self.figure_all.canvas.draw()
+        self.figure_all.canvas.flush_events()
 
+        # Maintain good results
+        good = []
+        for m in matches:
+            if m.distance < 30:
+                good.append(m)
+        img_matched_good = cv.drawMatches(left_img,left_kp,right_img,right_kp,good,None,**draw_params)
+        
+        # Draw good matches
+        if hasattr(self,'img_good'):
+            self.img_good.set_data(img_matched_good)
+        else:
+            self.img_good = self.ax_good.imshow(img_matched_good, 'gray')
+            
+        self.figure_good.canvas.draw()
+        self.figure_good.canvas.flush_events()
 
 def main(args=None):
     rclpy.init(args=args)
+
+    plt.ion()
 
     features_node = Features_Node()
 
