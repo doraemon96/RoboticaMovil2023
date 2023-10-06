@@ -52,11 +52,11 @@ python3 create_calibration_rosbag2.py && \
     deactivate
 ```
 
-Para calibrar, corremos la rutina de calibración desde una terminal en el contenedor:
+Para calibrar, corremos la rutina de calibración desde una terminal:
 ```bash
 ros2 run camera_calibration cameracalibrator --approximate 0.1 --size 7x6 --square 0.108 --ros-args -r right:=/cam0 -r left:=/cam1 -r right_camera:=/cam0 -r left_camera:=/cam1
 ```
-y en otra terminal del contenedor reproducimos nuestro rosbag
+y en otra terminal reproducimos nuestro rosbag
 ```bash
 ros2 bag play --disable-keyboard-controls ./EuRoC/cam_checkerboard/cam_checkerboard_rosbag2
 ```
