@@ -70,3 +70,13 @@ mv /tmp/calibrationdata.tar.gz . &&\
 tar -xf calibrationdata.tar.gz right.yaml left.yaml
 ```
 para mover los archivos generados y extraer lo necesario.
+
+## Correr TP3
+
+Dentro de docker, para correr con un dataset en la carpeta EuRoC:
+```bash
+cd dev_ws
+source install/setup.bash
+colcon build && ros2 launch euroc_stereo2 euroc_ds_tp3.launch.py rosbag_path:='../EuRoC/V1_01_easy'
+```
+se puede reemplazar el dataset a utilizar dentro de los provistos por EuRoC modificando el path del parametro `rosbag_path` como muestra el comando (ese valor es por default).

@@ -6,10 +6,7 @@ import yaml
 
 
 IMAGE_LEFT = '/cam0'
-LEFT_CALIB_PATH = 'EuRoC/cam_checkerboard/left.yaml'
-
 IMAGE_RIGHT= '/cam1'
-RIGHT_CALIB_PATH = 'EuRoC/cam_checkerboard/right.yaml'
 
 class CalibData:
     def __init__(self, interinsic, distortion_model, distortion_coeffs,
@@ -35,14 +32,17 @@ class Synchronized_Images_Publisher(Node):
 
     def __init__(self):
         super().__init__('stereo_sync')
+        self.declare_parameter('left_calib_path', '../EuRoC/cam_checkerboard/left.yaml')
+        self.declare_parameter('right_calib_path', '../EuRoC/cam_checkerboard/right.yaml')
         self.p_left_img = self.create_publisher(Image, 'left_sync/image', 10)
         self.p_right_img = self.create_publisher(Image, 'right_sync/image', 10)
         self.p_left_info = self.create_publisher(CameraInfo, 'left_sync/camera_info', 10)
         self.p_right_info = self.create_publisher(CameraInfo, 'right_sync/camera_info', 10)
-        self.left_calib = calib_from_yaml(LEFT_CALIB_PATH)
-        self.right_calib = calib_from_yaml(RIGHT_CALIB_PATH)
+        self.left_calib = calib_from_yaml(self.get_parameter('left_calib_path').get_parameter_value().string_value)
+        self.right_calib = calib_from_yaml(self.get_parameter('right_calib_path').get_parameter_value().string_value)
 
     def stereo_sync_callback(self, left_msg, right_msg):
+        self.get_logger().info('Sync!')
         self.p_left_img.publish(left_msg)
         right_msg.header.stamp = left_msg.header.stamp 
         self.p_right_img.publish(right_msg) 
