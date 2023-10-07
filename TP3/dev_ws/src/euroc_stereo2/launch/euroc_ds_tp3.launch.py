@@ -49,5 +49,9 @@ def generate_launch_description():
         Node(
             package='euroc_stereo2',
             executable='features',
+        ),
+        Node(
+            package='euroc_stereo2',
+            executable='triangulate3d',
         )
     ])

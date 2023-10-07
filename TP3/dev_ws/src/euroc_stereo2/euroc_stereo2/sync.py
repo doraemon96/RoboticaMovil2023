@@ -42,7 +42,6 @@ class Synchronized_Images_Publisher(Node):
         self.right_calib = calib_from_yaml(self.get_parameter('right_calib_path').get_parameter_value().string_value)
 
     def stereo_sync_callback(self, left_msg, right_msg):
-        self.get_logger().info('Sync!')
         self.p_left_img.publish(left_msg)
         right_msg.header.stamp = left_msg.header.stamp 
         self.p_right_img.publish(right_msg) 

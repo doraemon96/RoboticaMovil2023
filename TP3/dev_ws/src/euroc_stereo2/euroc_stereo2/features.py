@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from euroc_stereo2_interfaces.msg import FeatureMatches
 import message_filters
 from cv_bridge import CvBridge
 import cv2 as cv
@@ -23,10 +24,11 @@ class Features_Node(Node):
         self.ax_all.set_title('All Matches')
         self.figure_good, self.ax_good = plt.subplots()
         self.ax_good.set_title('Matches with distance < 30')
+        self.p_matches = self.create_publisher(FeatureMatches, '/matches', 10)
             
     def features_callback(self, left_msg, right_msg):
-        left_img = self.br.imgmsg_to_cv2(left_msg)
-        right_img = self.br.imgmsg_to_cv2(right_msg)
+        left_img = self.br.imgmsg_to_cv2(left_msg, desired_encoding='passthrough')
+        right_img = self.br.imgmsg_to_cv2(right_msg, desired_encoding='passthrough')
         
         # compute the descriptors with ORB
         left_kp, left_descr = self.orb.detectAndCompute(left_img, None)
@@ -67,6 +69,19 @@ class Features_Node(Node):
             
         self.figure_good.canvas.draw()
         self.figure_good.canvas.flush_events()
+
+        left_kpts_good = [left_kp[i] for i in [g.queryIdx for g in good]]
+        right_kpts_good = [right_kp[i] for i in [g.trainIdx for g in good]]
+        left_kpts_coords = [[p.pt[0], p.pt[1]] for p in left_kpts_good]
+        right_kpts_coords = [[p.pt[0], p.pt[1]] for p in right_kpts_good]
+
+        m_matches = FeatureMatches()
+        m_matches.header = left_msg.header
+        m_matches.pts1 = [i for s in left_kpts_coords for i in s]
+        m_matches.pts2 = [i for s in right_kpts_coords for i in s]
+
+        self.p_matches.publish(m_matches)
+
 
 def main(args=None):
     rclpy.init(args=args)
