@@ -11,6 +11,7 @@ RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers\
 ;fi
 
+# Setup ROS
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         lsb-release \
@@ -29,11 +30,39 @@ RUN apt-get update && \
         libcanberra-gtk3-module && \
     rm -rf /var/lib/apt/lists/*
 
-#RUN apt-get install -y software-properties-common
-#RUN add-apt-repository ppa:deadsnakes/ppa -y
-#RUN apt-get install python3.8 python3.8-dev python3.8-venv
-
 RUN ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash"]
+
+# Build OpenCV (for optional modules)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        cmake \
+        gcc \
+        g++ \
+        python3-dev \
+        python3-numpy \ 
+        libavcodec-dev \
+        libavformat-dev \
+        libswscale-dev \
+        libgstreamer-plugins-base1.0-dev \
+        libgstreamer1.0-dev \
+        libgtk-3-dev \
+        git
+
+# OpenCV contrib has the extra modules
+RUN cd ~ &&\
+    git clone https://github.com/opencv/opencv_contrib
+
+RUN cd ~ &&\
+    git clone https://github.com/opencv/opencv.git &&\
+    cd opencv &&\
+    mkdir build &&\
+    cd build &&\
+    cmake -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules \
+        -D BUILD_EXAMPLES=OFF .. &&\
+    make -j4 &&\
+    make install &&\
+    ldconfig
 
 USER duser
 WORKDIR /home/duser
