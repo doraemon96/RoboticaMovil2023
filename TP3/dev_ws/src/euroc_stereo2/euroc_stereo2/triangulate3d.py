@@ -53,7 +53,7 @@ def main(args=None):
     left_info = message_filters.Subscriber(triangulate_node, CameraInfo, INFO_LEFT)
     right_info = message_filters.Subscriber(triangulate_node, CameraInfo, INFO_RIGHT)
 
-    ts = message_filters.TimeSynchronizer([featmatches, left_info, right_info], 10)
+    ts = message_filters.TimeSynchronizer([featmatches, left_info, right_info], 30)
     ts.registerCallback(triangulate_node.matches_callback)
 
     rclpy.spin(triangulate_node)
