@@ -9,14 +9,14 @@ import numpy as np
 
 INFO_LEFT='/left/camera_info'
 INFO_RIGHT='/right/camera_info'
-FEAT_MATCHES = '/matches'
+FEAT_MATCHES = '/keypoints/good/matches'
 
 
 class TriangulatedPointCloud3D(Node):
 
     def __init__(self):
         super().__init__('triangulated_pointcloud_3d')
-        self.p_pointcloud2 = self.create_publisher(PointCloud, '/pointcloud', 10)
+        self.p_pointcloud2 = self.create_publisher(PointCloud, '/keypoints/matches/good/data', 10)
 
     def matches_callback(self, match_msg, left_info, right_info):
         # unflatten match message
