@@ -27,7 +27,7 @@ class TriangulatedPointCloud3D(Node):
         projmat2 = np.array(right_info.p).reshape((3,4))
         # calculate points in homogeneous coordinates
         points4d = cv.sfm.triangulatePoints(np.array([pts1, pts2]), np.array([projmat1, projmat2]))
-        # self.get_logger().info(f'{points4d}')
+        # self.get_logger().info(f'{points4d.shape}')
         
         def point3d_to_point32(p3d):
             p32 = Point32()
@@ -38,7 +38,7 @@ class TriangulatedPointCloud3D(Node):
         
         m_pcloud = PointCloud()
         m_pcloud.header = match_msg.header
-        m_pcloud.points = [point3d_to_point32(r) for r in points4d]
+        m_pcloud.points = [point3d_to_point32(r) for r in points4d.T if r[2] > 0]
 
         self.p_pointcloud2.publish(m_pcloud)
 
