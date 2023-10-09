@@ -49,6 +49,9 @@ def generate_launch_description():
         Node(
             package='euroc_stereo2',
             executable='features',
+            parameters=[
+                {'draw_matches': False}, # Publish matches
+            ]
         ),
         Node(
             package='euroc_stereo2',

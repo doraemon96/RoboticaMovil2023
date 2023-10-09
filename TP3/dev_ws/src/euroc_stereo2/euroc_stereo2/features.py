@@ -8,14 +8,8 @@ import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
 
-# Toggle this constant to draw images directly into PLT, otherwise
-# they are simply published to a topic and can be visualized by RViz
-# or other visualization tools
-DRAW = False
-
 IMAGE_LEFT = '/left/image_rect'
 IMAGE_RIGHT= '/right/image_rect'
-
 
 class Features_Node(Node):
 
@@ -24,13 +18,21 @@ class Features_Node(Node):
         self.br = CvBridge()
         self.orb = cv.ORB_create()
         self.bfmatcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
-        self.figure_all, self.ax_all = plt.subplots()
-        self.ax_all.set_title('All Matches')
-        self.figure_good, self.ax_good = plt.subplots()
-        self.ax_good.set_title('Matches with distance < 30')
-        self.p_matches_img_all = self.create_publisher(Image, '/keypoints/matches/all/image', 10)
-        self.p_matches_img_good = self.create_publisher(Image, '/keypoints/matches/good/image', 10)
-        self.p_matches = self.create_publisher(FeatureMatches, '/keypoints/matches/good/data', 10)
+        
+        # If this parameter is set to True, draw images directly into PLT, otherwise
+        # they are simply published to a topic and can be visualized by RViz
+        # or other visualization tools
+        self.declare_parameter('draw_matches', False)
+        self.draw = self.get_parameter('draw_matches').value
+        if self.draw:
+            self.figure_all, self.ax_all = plt.subplots()
+            self.ax_all.set_title('All Matches')
+            self.figure_good, self.ax_good = plt.subplots()
+            self.ax_good.set_title('Matches with distance < 30')
+        else:
+            self.p_matches_img_all = self.create_publisher(Image, '/keypoints/matches/all/image', 10)
+            self.p_matches_img_good = self.create_publisher(Image, '/keypoints/matches/good/image', 10)
+            self.p_matches = self.create_publisher(FeatureMatches, '/keypoints/matches/good/data', 10)
             
     def features_callback(self, left_msg, right_msg):
         left_img = self.br.imgmsg_to_cv2(left_msg, desired_encoding='passthrough')
@@ -43,37 +45,31 @@ class Features_Node(Node):
         # Match descriptors
         matches = self.bfmatcher.match(left_descr,right_descr)
 
-        # Draw
-        draw_params = dict(matchColor = (0,255,0), # draw matches in green color
-            singlePointColor = None,
-            matchesMask = None, # draw only inliers
-            flags = 2)
-        
-        img_matched = cv.drawMatches(left_img,left_kp,right_img,right_kp,matches,None,**draw_params)
-
-        self.p_matches_img_all.publish(self.br.cv2_to_imgmsg(img_matched, encoding='passthrough'))
-        
-        if DRAW:
-            # Draw all matches
-            if hasattr(self,'img_all'):
-                self.img_all.set_data(img_matched)
-            else:
-                self.img_all = self.ax_all.imshow(img_matched, 'gray')
-                
-            self.figure_all.canvas.draw()
-            self.figure_all.canvas.flush_events()
-
-        # Maintain good results
+        # Good matches
         good = []
         for m in matches:
             if m.distance < 30:
                 good.append(m)
+
+        # Draw matches on images
+        draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+            singlePointColor = None,
+            matchesMask = None, # draw only inliers
+            flags = 2)
+        img_matched = cv.drawMatches(left_img,left_kp,right_img,right_kp,matches,None,**draw_params)
         img_matched_good = cv.drawMatches(left_img,left_kp,right_img,right_kp,good,None,**draw_params)
 
-        self.p_matches_img_good.publish(self.br.cv2_to_imgmsg(img_matched_good, encoding='passthrough'))
-        
-        if DRAW:
-            # Draw good matches
+        if self.draw:
+            # Plot all matches
+            if hasattr(self,'img_all'):
+                self.img_all.set_data(img_matched)
+            else:
+                self.img_all = self.ax_all.imshow(img_matched, 'gray')
+
+            self.figure_all.canvas.draw()
+            self.figure_all.canvas.flush_events()
+
+            # Plot good matches
             if hasattr(self,'img_good'):
                 self.img_good.set_data(img_matched_good)
             else:
@@ -82,17 +78,21 @@ class Features_Node(Node):
             self.figure_good.canvas.draw()
             self.figure_good.canvas.flush_events()
 
-        left_kpts_good = [left_kp[i] for i in [g.queryIdx for g in good]]
-        right_kpts_good = [right_kp[i] for i in [g.trainIdx for g in good]]
-        left_kpts_coords = [[p.pt[0], p.pt[1]] for p in left_kpts_good]
-        right_kpts_coords = [[p.pt[0], p.pt[1]] for p in right_kpts_good]
+        else:
+            self.p_matches_img_all.publish(self.br.cv2_to_imgmsg(img_matched, encoding='passthrough'))
+            self.p_matches_img_good.publish(self.br.cv2_to_imgmsg(img_matched_good, encoding='passthrough'))
+            
+            left_kpts_good = [left_kp[i] for i in [g.queryIdx for g in good]]
+            right_kpts_good = [right_kp[i] for i in [g.trainIdx for g in good]]
+            left_kpts_coords = [[p.pt[0], p.pt[1]] for p in left_kpts_good]
+            right_kpts_coords = [[p.pt[0], p.pt[1]] for p in right_kpts_good]
 
-        m_matches = FeatureMatches()
-        m_matches.header = left_msg.header
-        m_matches.pts1 = [i for s in left_kpts_coords for i in s]
-        m_matches.pts2 = [i for s in right_kpts_coords for i in s]
+            m_matches = FeatureMatches()
+            m_matches.header = left_msg.header
+            m_matches.pts1 = [i for s in left_kpts_coords for i in s]
+            m_matches.pts2 = [i for s in right_kpts_coords for i in s]
 
-        self.p_matches.publish(m_matches)
+            self.p_matches.publish(m_matches)
 
 
 def main(args=None):
