@@ -50,11 +50,15 @@ def generate_launch_description():
             package='euroc_stereo2',
             executable='features',
             parameters=[
-                {'draw_matches': False}, # Publish matches
-            ]
+                {'draw_matches': True}, # Publish matches
+            ],
+            output = 'screen',
         ),
-        Node(
-            package='euroc_stereo2',
-            executable='triangulate3d',
-        )
+        # Node(
+        #     package='euroc_stereo2',
+        #     executable='triangulate3d',
+        #     parameters=[
+        #         {'draw_matches': True}, # Plot matches
+        #     ]
+        # )
     ])
