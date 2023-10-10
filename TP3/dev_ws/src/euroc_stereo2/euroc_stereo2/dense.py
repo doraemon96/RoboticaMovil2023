@@ -18,7 +18,7 @@ class DenseFromDisparity(Node):
     def __init__(self):
         super().__init__('dense_from_disparity')
         self.br = CvBridge()
-        self.sm = cv.StereoMatcher()
+        self.sm = cv.StereoBM.create()
         self.p_disparity = self.create_publisher(Image, 'disparity', 10)
         self.p_depth = self.create_publisher(Image, 'depth', 10)
 
