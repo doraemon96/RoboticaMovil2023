@@ -1,6 +1,7 @@
 from cv_bridge import CvBridge
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, CameraInfo, PointCloud
+from geometry_msgs.msg import Point32
 import cv2 as cv
 import message_filters
 import numpy as np
@@ -20,7 +21,8 @@ class DenseFromDisparity(Node):
         self.br = CvBridge()
         self.sm = cv.StereoBM.create()
         self.p_disparity = self.create_publisher(Image, 'depth/disparity', 10)
-        self.p_depth = self.create_publisher(Image, 'depth/points', 10)
+        self.p_depth = self.create_publisher(Image, 'depth/image', 10)
+        self.p_pcloud = self.create_publisher(PointCloud, 'depth/pointcloud', 10)
 
     def images_callback(self, left_msg, left_info, right_msg, right_info):
         # Transform ROS2 messages to OpenCV matrices
@@ -57,10 +59,23 @@ class DenseFromDisparity(Node):
         )
 
         # Compute depth points
-        # TODO: read about bitness of disparity img, it might need to be transformed
         depth_img = cv.reprojectImageTo3D(disparity_img, Q)  # 3-channel floating-point image
         depth_msg = self.br.cv2_to_imgmsg(depth_img, encoding='passthrough')
         self.p_depth.publish(depth_msg)
+
+        # Compute depth pointcloud
+        def point3d_to_point32(p3d):
+            p32 = Point32()
+            p32.x = float(p3d[0])
+            p32.y = float(p3d[1])
+            p32.z = float(p3d[2])
+            return p32
+        
+        m_pcloud = PointCloud()
+        m_pcloud.header = disparity_msg.header
+        m_pcloud.points = [point3d_to_point32(r) for r in depth_img.reshape((-1,3))]
+
+        self.p_pcloud.publish(m_pcloud)
 
 
 def main(args=None):
