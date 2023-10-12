@@ -10,10 +10,13 @@ from launch.substitutions import PathJoinSubstitution, TextSubstitution, LaunchC
 
 
 def generate_launch_description():
-
     return LaunchDescription([
         DeclareLaunchArgument(
             "rosbag_path", default_value=TextSubstitution(text="../EuRoC/V1_01_easy")
+        ),
+        DeclareLaunchArgument(
+            "draw_matches", default_value='false', choices=['true', 'false'],
+            description='If true, images are plotted using pyplot'
         ),
         ExecuteProcess(
             cmd=[
@@ -50,9 +53,9 @@ def generate_launch_description():
             package='euroc_stereo2',
             executable='features',
             parameters=[
-                {'draw_matches': True}, # Publish matches
+                {'draw_matches': LaunchConfiguration('draw_matches')},  # Publish matches
             ],
-            output = 'screen',
+            output='screen',
         ),
         # Node(
         #     package='euroc_stereo2',
