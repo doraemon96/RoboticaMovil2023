@@ -60,7 +60,7 @@ class DenseFromDisparity(Node):
 
         # Compute depth points
         depth_img = cv.reprojectImageTo3D(disparity_img, Q)  # 3-channel floating-point image
-        depth_msg = self.br.cv2_to_imgmsg(depth_img, encoding='passthrough')
+        depth_msg = self.br.cv2_to_imgmsg(depth_img.copy(), encoding='passthrough')
         self.p_depth.publish(depth_msg)
 
         # Compute depth pointcloud
@@ -72,8 +72,8 @@ class DenseFromDisparity(Node):
             return p32
         
         m_pcloud = PointCloud()
-        m_pcloud.header = disparity_msg.header
-        m_pcloud.points = [point3d_to_point32(r) for r in depth_img.reshape((-1,3))]
+        m_pcloud.header = left_msg.header
+        m_pcloud.points = [point3d_to_point32(r) for r in depth_img.copy().reshape((-1,3))]
 
         self.p_pcloud.publish(m_pcloud)
 
