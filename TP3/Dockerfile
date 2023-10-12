@@ -60,7 +60,7 @@ RUN cd ~ &&\
     cmake -D CMAKE_INSTALL_PREFIX=/usr/local \
         -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules \
         -D BUILD_EXAMPLES=OFF .. &&\
-    make -j4 &&\
+    make -j$(nproc) &&\
     make install &&\
     ldconfig
 
