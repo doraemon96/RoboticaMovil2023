@@ -35,7 +35,8 @@ def generate_launch_description():
                     'launch',
                     'stereo_image_proc.launch.py'
                 ])
-            ])
+            ]),
+            launch_arguments={'use_color': 'False'}.items(),
         ),
         Node(
             package='euroc_stereo2',

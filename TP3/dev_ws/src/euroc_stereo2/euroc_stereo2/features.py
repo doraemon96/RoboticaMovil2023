@@ -1,13 +1,17 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, PointCloud, CameraInfo
-from geometry_msgs.msg import Point32
+from geometry_msgs.msg import Point32, TransformStamped, Transform, PointStamped
+# import tf_conversions
+import tf2_ros
+# from tf.msg import tfMessage
 # from euroc_stereo2_interfaces.msg import KeyPoint, KeyPointsMatched
 import message_filters
 from cv_bridge import CvBridge
 import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.spatial.transform import Rotation as R # Para computar quaterniones
 
 IMAGE_LEFT = '/left/image_rect'
 IMAGE_RIGHT= '/right/image_rect'
@@ -24,7 +28,16 @@ class Features_Node(Node):
 
         self.p_pointcloud = self.create_publisher(PointCloud, '/keypoints/matches/good/pointcloud', 10)
         self.p_pointcloud_ransac = self.create_publisher(PointCloud, '/keypoints/matches/ransac/pointcloud', 10)
-            
+        self.p_cam0_traj = self.create_publisher(PointCloud, '/traj/cam0', 10) ## PARA GRAFICAR TRAYECTORIA EN RVIZ, PUBLICO UN PUNTO EN EL ORIGEN DE LA CAMARA Y LO VISUALIZO VIVO POR LARGO TIEMPO
+
+        self.tfBroadcaster = tf2_ros.TransformBroadcaster(self)
+
+        ## VARIABLES EN EL PASO ANTERIOR PARA OBTENER TRAYECTORIA TOTAL
+        self.lastStep = {
+            'hasData': False,
+            'pose': Transform(),
+        }
+
         # If this parameter is set to True, draw images directly into PLT
         self.declare_parameter('draw_matches', False)
         self.draw = self.get_parameter('draw_matches').value
@@ -140,6 +153,132 @@ class Features_Node(Node):
         # also draw right keypoints
         kp_ransac_right = [ cv.KeyPoint(p[0][0], p[0][1], 1) for p in pts2_ransac.reshape(-1,1,2) ]
         img_perspective = cv.drawKeypoints(img_perspective, kp_ransac_right, None, color=(0,0,255), flags=0)
+
+        #######################################################################
+        # Pose estimation
+        #######################################################################
+        # reshape points
+        pts1_ransac = pts1_ransac.T.reshape(-1, 1, 2)
+        pts2_ransac = pts2_ransac.T.reshape(-1, 1, 2)
+
+        E, E_mask = cv.findEssentialMat(pts1_ransac, pts2_ransac, projmat1[:, 0:3],
+          method=cv.RANSAC, prob=0.999, threshold=3.0)
+
+        _, R_est, T_est, mask = cv.recoverPose(E, pts1_ransac, pts2_ransac, projmat1[:, 0:3], mask=E_mask)
+        # self.get_logger().info('R_est: ' + str(R_est))
+        #self.get_logger().info('T_est(pre): (' + type(T_est) + ') ' + str(T_est))
+        baseline = - projmat2[0, 3] / projmat2[0, 0]
+        # self.get_logger().info('baseline: ' + str(baseline))
+        T_est = T_est * baseline
+        # self.get_logger().info('T_est: ' + str(T_est))
+        # self.get_logger().info('T_est[0][0]: ' + str(T_est[0][0]))
+
+        quat = R.from_matrix(R_est).as_quat()
+
+        tf_msg = TransformStamped()
+        # tf_msg.transform.append(TransformStamped())
+        tf_msg.header = left_info_msg.header
+        tf_msg.child_frame_id = 'cam1'
+        tf_msg.transform.translation.x = T_est[0][0]
+        tf_msg.transform.translation.y = T_est[1][0]
+        tf_msg.transform.translation.z = T_est[2][0]
+        tf_msg.transform.rotation.x = quat[0]
+        tf_msg.transform.rotation.y = quat[1]
+        tf_msg.transform.rotation.z = quat[2]
+        tf_msg.transform.rotation.w = quat[3]
+        self.tfBroadcaster.sendTransform(tf_msg)
+
+        #######################################################################
+        # Trajectory Estimation
+        #######################################################################
+        if self.lastStep['hasData']:
+            #######################################################################
+            # Get features and match them
+            #######################################################################
+
+            # Compute the keypoints and descriptors with ORB
+            # left_kp, left_descr = self.orb.detectAndCompute(left_img, None)
+            # right_kp, right_descr = self.orb.detectAndCompute(right_img, None)
+
+            # Match descriptors
+            matches_traj = self.bfmatcher.match(left_descr, self.lastStep['left_descr'])
+
+            # Good matches (i.e. distance < 30)
+            good_matches_traj = []
+            for m in matches_traj:
+                if m.distance < 30:
+                    good_matches_traj.append(m)
+
+            if len(good_matches_traj) < 1:
+                return
+
+            # Sorted good matches
+            left_kp_good_traj = [left_kp[g.queryIdx].pt for g in good_matches_traj]
+            pre_kp_good_traj = [self.lastStep['left_kp'][g.trainIdx].pt for g in good_matches_traj]
+
+            #######################################################################
+            # RANSAC
+            #######################################################################
+
+            # unflatten keypoints
+            src_pts_traj = np.float32(left_kp_good_traj).reshape(-1, 1, 2)
+            dst_pts_traj = np.float32(pre_kp_good_traj).reshape(-1, 1, 2)
+
+            # RANSAC
+            M_traj, mask_traj = cv.findHomography(src_pts_traj, dst_pts_traj, cv.RANSAC, 5.0)
+            ransacMatchesMask_traj = mask_traj.ravel().tolist()
+
+            ## Triangulate 3D points
+            # unflatten keypoints
+            pts1_ransac_traj = np.array([left_kp_good_traj[i]
+                                    for i in range(1, len(left_kp_good_traj))
+                                    if ransacMatchesMask_traj[i] == 1]).reshape((-1, 2)).T
+            pre_pts1_ransac = np.array([pre_kp_good_traj[i]
+                                    for i in range(1, len(pre_kp_good_traj))
+                                    if ransacMatchesMask_traj[i] == 1]).reshape((-1, 2)).T
+
+            #######################################################################
+            # Pose estimation
+            #######################################################################
+
+            pts1_ransac_traj = pts1_ransac_traj.T.reshape(-1, 1, 2)
+            pre_pts1_ransac = pre_pts1_ransac.T.reshape(-1, 1, 2)
+
+            E_traj, _ = cv.findEssentialMat(pts1_ransac_traj, pre_pts1_ransac, projmat1[:, 0:3])
+            _, R_est_traj, T_est_traj, mask_traj = cv.recoverPose(E_traj, pts1_ransac_traj, pre_pts1_ransac, projmat1[:, 0:3])
+
+            baseline_traj = 0.1
+            T_est_traj = T_est_traj * baseline_traj
+            quat_traj = R.from_matrix(R_est_traj).as_quat()
+
+            tf_msg = TransformStamped()
+            # tf_msg.transform.append(TransformStamped())
+            tf_msg.header = left_info_msg.header
+            tf_msg.child_frame_id = 'world'
+            tf_msg.transform.translation.x = self.lastStep['pose'].translation.x + T_est_traj[0][0]
+            tf_msg.transform.translation.y = self.lastStep['pose'].translation.y + T_est_traj[1][0]
+            tf_msg.transform.translation.z = self.lastStep['pose'].translation.z + T_est_traj[2][0]
+            tf_msg.transform.rotation.x = self.lastStep['pose'].rotation.x + quat_traj[0]
+            tf_msg.transform.rotation.y = self.lastStep['pose'].rotation.y + quat_traj[1]
+            tf_msg.transform.rotation.z = self.lastStep['pose'].rotation.z + quat_traj[2]
+            tf_msg.transform.rotation.w = self.lastStep['pose'].rotation.w + quat_traj[3]
+            self.tfBroadcaster.sendTransform(tf_msg)
+
+            pt_cam0 = PointCloud()
+            pt_cam0.header.stamp = left_info_msg.header.stamp
+            pt_cam0.header.frame_id = 'cam0'
+            pt_cam0.points = [Point32()]
+
+            self.p_cam0_traj.publish(pt_cam0)
+
+            self.lastStep['pose'] = tf_msg.transform
+
+        # UPDATE LAST STEP VARIABLES
+        self.lastStep['left_kp'] = left_kp
+        self.lastStep['left_descr'] = left_descr
+        if not self.lastStep['hasData']:
+            self.lastStep['hasData'] = True
+
 
         #######################################################################
         # Plot matches
