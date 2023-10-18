@@ -36,6 +36,7 @@ class Features_Node(Node):
         self.lastStep = {
             'hasData': False,
             'pose': Transform(),
+            'homT': np.eye(4),  # TRANSFORMACION HOMOGENEA INICIAL
         }
 
         # If this parameter is set to True, draw images directly into PLT
@@ -161,11 +162,14 @@ class Features_Node(Node):
         pts1_ransac = pts1_ransac.T.reshape(-1, 1, 2)
         pts2_ransac = pts2_ransac.T.reshape(-1, 1, 2)
 
+        self.get_logger().info('projmat1: ' + str(projmat1))
+        self.get_logger().info('projmat1[:, 0:3]: ' + str(projmat1[:, 0:3]))
         E, E_mask = cv.findEssentialMat(pts1_ransac, pts2_ransac, projmat1[:, 0:3],
           method=cv.RANSAC, prob=0.999, threshold=3.0)
 
         _, R_est, T_est, mask = cv.recoverPose(E, pts1_ransac, pts2_ransac, projmat1[:, 0:3], mask=E_mask)
-        # self.get_logger().info('R_est: ' + str(R_est))
+        self.get_logger().info('R_est:\n' + str(R_est))
+        self.get_logger().info('det(R_est): ' + str(np.linalg.det(R_est)))
         #self.get_logger().info('T_est(pre): (' + type(T_est) + ') ' + str(T_est))
         baseline = - projmat2[0, 3] / projmat2[0, 0]
         # self.get_logger().info('baseline: ' + str(baseline))
@@ -191,6 +195,7 @@ class Features_Node(Node):
         #######################################################################
         # Trajectory Estimation
         #######################################################################
+
         if self.lastStep['hasData']:
             #######################################################################
             # Get features and match them
@@ -247,21 +252,39 @@ class Features_Node(Node):
             E_traj, _ = cv.findEssentialMat(pts1_ransac_traj, pre_pts1_ransac, projmat1[:, 0:3])
             _, R_est_traj, T_est_traj, mask_traj = cv.recoverPose(E_traj, pts1_ransac_traj, pre_pts1_ransac, projmat1[:, 0:3])
 
-            baseline_traj = 0.1
+            baseline_traj = 0.05
             T_est_traj = T_est_traj * baseline_traj
-            quat_traj = R.from_matrix(R_est_traj).as_quat()
+
+
+            # TRANSFORMACION HOMOGENEA ACTUAL
+            homT_1 = np.eye(4)
+            homT_1[0:3, 0:3] = R_est_traj
+            homT_1[0, 3] = T_est_traj[0][0]
+            homT_1[1, 3] = T_est_traj[1][0]
+            homT_1[2, 3] = T_est_traj[2][0]
+
+            self.get_logger().info('homT (preCalcs):\n' + str(self.lastStep['homT']))
+            self.get_logger().info('det(R_est_traj):\n' + str(np.linalg.det(R_est_traj)))
+            self.get_logger().info('homT_1:\n' + str(homT_1))
+            homT = homT_1 @ self.lastStep['homT']
+            RotFinal = homT[0:3, 0:3]
+            quat_traj = R.from_matrix(RotFinal).as_quat()
+            TrasFinal = homT[0:3, 3]
+
+            self.get_logger().info('homT (final):\n' + str(homT))
+            self.get_logger().info('TrasFinal:\n' + str(TrasFinal))
 
             tf_msg = TransformStamped()
             # tf_msg.transform.append(TransformStamped())
             tf_msg.header = left_info_msg.header
             tf_msg.child_frame_id = 'world'
-            tf_msg.transform.translation.x = self.lastStep['pose'].translation.x + T_est_traj[0][0]
-            tf_msg.transform.translation.y = self.lastStep['pose'].translation.y + T_est_traj[1][0]
-            tf_msg.transform.translation.z = self.lastStep['pose'].translation.z + T_est_traj[2][0]
-            tf_msg.transform.rotation.x = self.lastStep['pose'].rotation.x + quat_traj[0]
-            tf_msg.transform.rotation.y = self.lastStep['pose'].rotation.y + quat_traj[1]
-            tf_msg.transform.rotation.z = self.lastStep['pose'].rotation.z + quat_traj[2]
-            tf_msg.transform.rotation.w = self.lastStep['pose'].rotation.w + quat_traj[3]
+            tf_msg.transform.translation.x = TrasFinal[0]
+            tf_msg.transform.translation.y = TrasFinal[1]
+            tf_msg.transform.translation.z = TrasFinal[2]
+            tf_msg.transform.rotation.x = quat_traj[0]
+            tf_msg.transform.rotation.y = quat_traj[1]
+            tf_msg.transform.rotation.z = quat_traj[2]
+            tf_msg.transform.rotation.w = quat_traj[3]
             self.tfBroadcaster.sendTransform(tf_msg)
 
             pt_cam0 = PointCloud()
@@ -272,10 +295,12 @@ class Features_Node(Node):
             self.p_cam0_traj.publish(pt_cam0)
 
             self.lastStep['pose'] = tf_msg.transform
+            self.lastStep['homT'] = homT
 
         # UPDATE LAST STEP VARIABLES
         self.lastStep['left_kp'] = left_kp
         self.lastStep['left_descr'] = left_descr
+
         if not self.lastStep['hasData']:
             self.lastStep['hasData'] = True
 
