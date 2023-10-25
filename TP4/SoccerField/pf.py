@@ -1,6 +1,7 @@
 """ Written by Brian Hou for CSE571: Probabilistic Robotics (Winter 2019)
 """
 
+import math
 import numpy as np
 
 from utils import minimized_angle
@@ -31,7 +32,16 @@ class ParticleFilter:
         z: landmark observation
         marker_id: landmark ID
         """
-        # YOUR IMPLEMENTATION HERE
+        for i, particle in enumerate(self.particles):
+            particle = env.forward(particle, u)
+            dmx = env.MARKER_X_POS[marker_id] - particle[0]
+            dmy = env.MARKER_Y_POS[marker_id] - particle[1]
+            z_hat = minimized_angle(math.atan2(dmy, dmx) - particle[2])
+            weight = env.likelihood(z - z_hat, self.beta)
+        
+            self.particles[i,:] = particle[0]
+            self.weights[i] = weight
+        
         mean, cov = self.mean_and_variance(self.particles)
         return mean, cov
 
@@ -42,8 +52,20 @@ class ParticleFilter:
         particles: (n x 3) matrix of poses
         weights: (n,) array of weights
         """
-        new_particles, new_weights = particles, weights
-        # YOUR IMPLEMENTATION HERE
+        new_particles, new_weights = [], []
+
+        M = self.num_particles
+        r = np.random()/M
+        c = weights[0]
+        i = 0
+        for m in range(1,M+1):
+            u = r + (m-1) / M
+            while u > c:
+                i = i + 1
+                c = c + weights[i] 
+            new_particles.append(particles[i])
+            new_weights.append(weights[i])
+        
         return new_particles, new_weights
 
     def mean_and_variance(self, particles):

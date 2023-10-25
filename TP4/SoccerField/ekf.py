@@ -38,10 +38,10 @@ class ExtendedKalmanFilter:
         dmx = env.MARKER_X_POS[marker_id] - _x
         dmy = env.MARKER_Y_POS[marker_id] - _y
         q = (dmx)**2 + (dmy)**2
-        z_hat = math.atan2(dmy, dmx) - _theta #np.array([math.sqrt(q), math.atan2(dmy, dmx) - _theta]).T
+        z_hat = minimized_angle(math.atan2(dmy, dmx) - _theta)
         H = env.H(_mu, marker_id)
         S = H @ _sigma @ H.T + Q
         K = (_sigma @ H.T) @ np.linalg.pinv(S)
-        self.mu = _mu + K * (z - z_hat)
+        self.mu = _mu + K @ minimized_angle(z - z_hat)
         self.sigma = (np.eye(3) - K @ H) @ _sigma
         return self.mu, self.sigma
