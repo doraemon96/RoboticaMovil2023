@@ -66,8 +66,8 @@ class Field:
         prev_x, prev_y, prev_theta = x.ravel()
         rot1, trans, rot2 = u.ravel()
         return np.matrix([
-            [-trans*math.sin(prev_theta+rot1), math.sin(prev_theta+rot1), 0],
-            [trans*math.cos(prev_theta+rot1), math.cos(prev_theta+rot1), 0],
+            [-trans*math.sin(prev_theta+rot1), math.cos(prev_theta+rot1), 0],
+            [trans*math.cos(prev_theta+rot1) , math.sin(prev_theta+rot1), 0],
             [1, 0, 1]
         ])
 
