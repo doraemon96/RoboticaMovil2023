@@ -77,10 +77,11 @@ class Field:
         dmx = self.MARKER_X_POS[marker_id] - prev_x
         dmy = self.MARKER_Y_POS[marker_id] - prev_y
         q = (dmx)**2 + (dmy)**2
-        return np.matrix([
-            [-(dmx/math.sqrt(q)), -(dmy/math.sqrt(q)), 0],
-            [dmy/q              , -(dmx/q)           , -1]
-        ])
+        #return np.matrix([
+        #    [-(dmx/math.sqrt(q)), -(dmy/math.sqrt(q)), 0],
+        #    [dmy/q              , -(dmx/q)           , -1]
+        #])
+        return np.matrix([[dmy/q, -(dmx/q), -1]])
 
     def forward(self, x, u):
         """Compute next state, given current state and action.
