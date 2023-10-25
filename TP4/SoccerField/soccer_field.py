@@ -55,7 +55,7 @@ class Field:
         """Compute the Jacobian of the dynamics with respect to the state."""
         prev_x, prev_y, prev_theta = x.ravel()
         rot1, trans, rot2 = u.ravel()
-        return np.matrix([
+        return np.array([
             [1, 0, -trans*math.sin(prev_theta+rot1)],
             [0, 1, trans*math.cos(prev_theta+rot2)],
             [0, 0, 1]
@@ -65,7 +65,7 @@ class Field:
         """Compute the Jacobian of the dynamics with respect to the control."""
         prev_x, prev_y, prev_theta = x.ravel()
         rot1, trans, rot2 = u.ravel()
-        return np.matrix([
+        return np.array([
             [-trans*math.sin(prev_theta+rot1), math.cos(prev_theta+rot1), 0],
             [trans*math.cos(prev_theta+rot1) , math.sin(prev_theta+rot1), 0],
             [1, 0, 1]
@@ -81,7 +81,7 @@ class Field:
         #    [-(dmx/math.sqrt(q)), -(dmy/math.sqrt(q)), 0],
         #    [dmy/q              , -(dmx/q)           , -1]
         #])
-        return np.matrix([[dmy/q, -(dmx/q), -1]])
+        return np.array([[dmy/q, -(dmx/q), -1]])
 
     def forward(self, x, u):
         """Compute next state, given current state and action.

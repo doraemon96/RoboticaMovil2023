@@ -42,6 +42,6 @@ class ExtendedKalmanFilter:
         H = env.H(_mu, marker_id)
         S = H @ _sigma @ H.T + Q
         K = (_sigma @ H.T) @ np.linalg.pinv(S)
-        self.mu = _mu + K * (z - z_hat)
+        self.mu = _mu + K @ (z - z_hat)
         self.sigma = (np.eye(3) - K @ H) @ _sigma
         return self.mu, self.sigma
