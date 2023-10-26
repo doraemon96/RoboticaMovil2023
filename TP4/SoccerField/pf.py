@@ -42,6 +42,8 @@ class ParticleFilter:
         
             self.particles[i,:] = particle.ravel()
             self.weights[i] = weight
+
+        self.weights = self.normalize_weights(self.weights)
         
         self.particles,self.weights = self.resample(self.particles,self.weights)
 
@@ -58,17 +60,22 @@ class ParticleFilter:
         M = self.num_particles
         new_particles, new_weights = particles, weights
 
-        r = np.random.rand()/M
+        r = np.random.uniform(0, 1/M)
+        print(np.sum(weights))
         c = weights[0]
-        i = 0
-        for m in range(0,M):
-            u = r + (m) / M
+        i = 1
+        for m in range(1, M):
+            u = r + (m - 1) * (1 / M)
             while u > c:
                 i = i + 1
-                c = c + weights[i] 
-            new_particles[m] = particles[i]
+                c = c + weights[i-1]
+            new_particles[m] = particles[i-1]
         
         return new_particles, np.ones(self.num_particles) / self.num_particles
+
+    def normalize_weights(self, weights):
+        normalized = weights / np.sum(weights)
+        return normalized
 
     def mean_and_variance(self, particles):
         """Compute the mean and covariance matrix for a set of equally-weighted
