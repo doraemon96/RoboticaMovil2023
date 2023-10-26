@@ -33,15 +33,20 @@ class ParticleFilter:
         marker_id: landmark ID
         """
         for i, particle in enumerate(self.particles):
-            particle = env.forward(particle, u)
+            _u = env.sample_noisy_action(u, self.alphas)
+            particle = env.forward(particle, _u)
             dmx = env.MARKER_X_POS[marker_id] - particle[0]
             dmy = env.MARKER_Y_POS[marker_id] - particle[1]
             z_hat = minimized_angle(math.atan2(dmy, dmx) - particle[2])
             weight = env.likelihood(z - z_hat, self.beta)
         
-            self.particles[i,:] = particle[0]
+            self.particles[i,:] = particle.ravel()
             self.weights[i] = weight
+
+        self.weights = self.normalize_weights(self.weights)
         
+        self.particles,self.weights = self.resample(self.particles,self.weights)
+
         mean, cov = self.mean_and_variance(self.particles)
         return mean, cov
 
@@ -52,21 +57,25 @@ class ParticleFilter:
         particles: (n x 3) matrix of poses
         weights: (n,) array of weights
         """
-        new_particles, new_weights = [], []
-
         M = self.num_particles
-        r = np.random()/M
+        new_particles, new_weights = particles, weights
+
+        r = np.random.uniform(0, 1/M)
+        print(np.sum(weights))
         c = weights[0]
-        i = 0
-        for m in range(1,M+1):
-            u = r + (m-1) / M
+        i = 1
+        for m in range(1, M):
+            u = r + (m - 1) * (1 / M)
             while u > c:
                 i = i + 1
-                c = c + weights[i] 
-            new_particles.append(particles[i])
-            new_weights.append(weights[i])
+                c = c + weights[i-1]
+            new_particles[m] = particles[i-1]
         
-        return new_particles, new_weights
+        return new_particles, np.ones(self.num_particles) / self.num_particles
+
+    def normalize_weights(self, weights):
+        normalized = weights / np.sum(weights)
+        return normalized
 
     def mean_and_variance(self, particles):
         """Compute the mean and covariance matrix for a set of equally-weighted
