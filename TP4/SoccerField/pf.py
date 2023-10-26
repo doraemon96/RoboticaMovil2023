@@ -9,6 +9,8 @@ from utils import minimized_angle
 
 class ParticleFilter:
     def __init__(self, mean, cov, num_particles, alphas, beta):
+        self.weights = None
+        self.particles = None
         self.alphas = alphas
         self.beta = beta
 
@@ -38,14 +40,14 @@ class ParticleFilter:
             dmx = env.MARKER_X_POS[marker_id] - particle[0]
             dmy = env.MARKER_Y_POS[marker_id] - particle[1]
             z_hat = minimized_angle(math.atan2(dmy, dmx) - particle[2])
-            weight = env.likelihood(z - z_hat, self.beta)
-        
-            self.particles[i,:] = particle.ravel()
+            weight = env.likelihood(minimized_angle(z - z_hat), self.beta)
+
+            self.particles[i, :] = particle.ravel()
             self.weights[i] = weight
 
         self.weights = self.normalize_weights(self.weights)
-        
-        self.particles,self.weights = self.resample(self.particles,self.weights)
+
+        self.particles, self.weights = self.resample(self.particles, self.weights)
 
         mean, cov = self.mean_and_variance(self.particles)
         return mean, cov
@@ -60,17 +62,16 @@ class ParticleFilter:
         M = self.num_particles
         new_particles, new_weights = particles, weights
 
-        r = np.random.uniform(0, 1/M)
-        print(np.sum(weights))
+        r = np.random.uniform(0, 1 / M)
         c = weights[0]
-        i = 1
-        for m in range(1, M):
-            u = r + (m - 1) * (1 / M)
+        i = 0
+        for m in range(0, M):
+            u = r + (m) * (1 / M)
             while u > c:
                 i = i + 1
-                c = c + weights[i-1]
-            new_particles[m] = particles[i-1]
-        
+                c = c + weights[i]
+            new_particles[m] = particles[i]
+
         return new_particles, np.ones(self.num_particles) / self.num_particles
 
     def normalize_weights(self, weights):
