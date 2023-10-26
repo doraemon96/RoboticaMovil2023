@@ -11,11 +11,13 @@ import policies
 from ekf import ExtendedKalmanFilter
 from pf import ParticleFilter
 
+import json
+
 
 def localize(env, policy, filt, x0, num_steps, plot=False):
     # Collect data from an entire rollout
     states_noisefree, states_real, action_noisefree, obs_noisefree, obs_real = \
-            env.rollout(x0, policy, num_steps)
+        env.rollout(x0, policy, num_steps)
     states_filter = np.zeros(states_real.shape)
     states_filter[0, :] = x0.ravel()
 
@@ -27,7 +29,7 @@ def localize(env, policy, filt, x0, num_steps, plot=False):
         fig = env.get_figure()
 
     for i in range(num_steps):
-        x_real = states_real[i+1, :].reshape((-1, 1))
+        x_real = states_real[i + 1, :].reshape((-1, 1))
         u_noisefree = action_noisefree[i, :].reshape((-1, 1))
         z_real = obs_real[i, :].reshape((-1, 1))
         marker_id = env.get_marker_id(i)
@@ -37,16 +39,16 @@ def localize(env, policy, filt, x0, num_steps, plot=False):
         else:
             # filters only know the action and observation
             mean, cov = filt.update(env, u_noisefree, z_real, marker_id)
-        states_filter[i+1, :] = mean.ravel()
+        states_filter[i + 1, :] = mean.ravel()
 
         if plot:
             fig.clear()
             plot_field(env, marker_id)
             plot_robot(env, x_real, z_real)
-            plot_path(env, states_noisefree[:i+1, :], 'g', 0.5)
-            plot_path(env, states_real[:i+1, :], 'b')
+            plot_path(env, states_noisefree[:i + 1, :], 'g', 0.5)
+            plot_path(env, states_real[:i + 1, :], 'b')
             if filt is not None:
-                plot_path(env, states_filter[:i+1, :2], 'r')
+                plot_path(env, states_filter[:i + 1, :2], 'r')
             fig.canvas.flush_events()
 
         errors[i, :] = (mean - x_real).ravel()
@@ -55,18 +57,17 @@ def localize(env, policy, filt, x0, num_steps, plot=False):
 
         cond_number = np.linalg.cond(cov)
         if cond_number > 1e12:
-            print('Badly conditioned cov (setting to identity):', cond_number)
-            print(cov)
+            # print('Badly conditioned cov (setting to identity):', cond_number)
+            # print(cov)
             cov = np.eye(3)
         mahalanobis_errors[i] = \
-                errors[i:i+1, :].dot(np.linalg.inv(cov)).dot(errors[i:i+1, :].T)
+            errors[i:i + 1, :].dot(np.linalg.inv(cov)).dot(errors[i:i + 1, :].T)[0][0]
 
     mean_position_error = position_errors.mean()
     mean_mahalanobis_error = mahalanobis_errors.mean()
     anees = mean_mahalanobis_error / 3
 
     if filt is not None:
-        print('-' * 80)
         print('Mean position error:', mean_position_error)
         print('Mean Mahalanobis error:', mean_mahalanobis_error)
         print('ANEES:', anees)
@@ -74,7 +75,7 @@ def localize(env, policy, filt, x0, num_steps, plot=False):
     if plot:
         plt.show(block=True)
 
-    return position_errors
+    return mean_position_error, mean_mahalanobis_error, anees
 
 
 def setup_parser():
@@ -103,19 +104,27 @@ def setup_parser():
         '--num-particles', type=int, default=100,
         help='number of particles (particle filter only)')
 
+    parser.add_argument(
+        '--num-runs', type=int, default=1,
+        help='number of runs')
+    parser.add_argument(
+        '--loop-factors', action='store_true',
+        help='habilita variaciones de alpha y beta sobre el vector r (hardcoded)'
+    )
+    parser.add_argument(
+        '--no-dataloop', action='store_true',
+        help='deshabilita variaciones en los data factors'
+    )
+
     return parser
 
 
-if __name__ == '__main__':
-    args = setup_parser().parse_args()
-    print('Data factor:', args.data_factor)
-    print('Filter factor:', args.filter_factor)
-
+def run_simulation(args):
     if args.seed is not None:
         np.random.seed(args.seed)
 
-    alphas = np.array([0.05**2, 0.005**2, 0.1**2, 0.01**2])
-    beta = np.diag([np.deg2rad(5)**2])
+    alphas = np.array([0.05 ** 2, 0.005 ** 2, 0.1 ** 2, 0.01 ** 2])
+    beta = np.diag([np.deg2rad(5) ** 2])
 
     env = Field(args.data_factor * alphas, args.data_factor * beta)
     policy = policies.OpenLoopRectanglePolicy()
@@ -142,4 +151,64 @@ if __name__ == '__main__':
         )
 
     # You may want to edit this line to run multiple localization experiments.
-    localize(env, policy, filt, initial_mean, args.num_steps, args.plot)
+    return localize(env, policy, filt, initial_mean, args.num_steps, args.plot)
+
+
+def default(obj):  ## ESTA FUNNCION SIRVE PARA GUARDAR NUMPY ARRAYS EN EL JSON
+    if type(obj).__module__ == np.__name__:
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return obj.item()
+    raise TypeError('Unknown type:', type(obj))
+
+
+if __name__ == '__main__':
+    args = setup_parser().parse_args()
+    if args.loop_factors:
+        r = np.array(['1/64', '1/16', '1/4', '1', '4', '16', '64'])
+    else:
+        r = np.array(['1'])
+
+    # Este diccionario se guarda en un archivo al finalizar las corridas
+    savedict = {'filter_type': args.filter_type,
+                'runs': args.num_runs,
+                'r': r,
+                'no-dataloop': args.no_dataloop,
+                'results': {}
+                }
+
+    data_factor_original = args.data_factor
+    filter_factor_original = args.filter_factor
+
+    for f in r:
+        print('-' * 80)
+        print('-' * 80)
+        print('Setting up simulation parameters...')
+        savedict['results'][f] = {}
+
+        if not args.no_dataloop:
+            args.data_factor = data_factor_original * eval(f)
+        args.filter_factor = filter_factor_original * eval(f)
+        print('Factor multiplier: ', f)
+        print('Data factor:', args.data_factor)
+        print('Filter factor:', args.filter_factor)
+        savedict['results'][f]['data_factor'] = args.data_factor
+        savedict['results'][f]['filter_factor'] = args.filter_factor
+
+        E = np.zeros((args.num_runs, 3))
+        for i in range(args.num_runs):
+            print('-' * 80)
+            print('Running simulation {} of {}'.format(i + 1, args.num_runs))
+            E[i, :] = run_simulation(args)
+        savedict['results'][f]['runs'] = E
+
+    if not args.filter_type == 'none':
+        with open('results-{filter}{factorloop}{dataloop}.json'.format(filter=args.filter_type,
+                                                                       factorloop=('-fl' if args.loop_factors else ''),
+                                                                       dataloop=('-ndl' if args.no_dataloop else '')),
+                  "w") as f:
+            # f.write(str(savedict))
+            json.dump(savedict, f, default=default)
+
+    print("Final Results: {!s}".format(savedict['results']))
