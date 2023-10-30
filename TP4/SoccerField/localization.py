@@ -95,10 +95,10 @@ def setup_parser():
 
     # Noise scaling factors
     parser.add_argument(
-        '--data-factor', type=float, default=1,
+        '--data-factor', nargs='*', type=float, default=[1],
         help='scaling factor for motion and observation noise (data)')
     parser.add_argument(
-        '--filter-factor', type=float, default=1,
+        '--filter-factor', nargs='*', type=float, default=[1],
         help='scaling factor for motion and observation noise (filter)')
     parser.add_argument(
         '--num-particles', type=int, default=100,
@@ -181,16 +181,20 @@ if __name__ == '__main__':
     data_factor_original = args.data_factor
     filter_factor_original = args.filter_factor
 
-    for f in r:
+    # for f in r:
+    for df, ff in [(df, ff) for df in data_factor_original for ff in filter_factor_original]:
         print('-' * 80)
         print('-' * 80)
         print('Setting up simulation parameters...')
+        f = f'({df},{ff})'
         savedict['results'][f] = {}
 
-        if not args.no_dataloop:
-            args.data_factor = data_factor_original * eval(f)
-        args.filter_factor = filter_factor_original * eval(f)
-        print('Factor multiplier: ', f)
+        # if not args.no_dataloop:
+        #     args.data_factor = data_factor_original * eval(f)
+        # args.filter_factor = filter_factor_original * eval(f)
+        args.data_factor = df
+        args.filter_factor = ff
+        # print('Factor multiplier: ', f)
         print('Data factor:', args.data_factor)
         print('Filter factor:', args.filter_factor)
         savedict['results'][f]['data_factor'] = args.data_factor
