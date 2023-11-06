@@ -115,6 +115,10 @@ def setup_parser():
         '--no-dataloop', action='store_true',
         help='deshabilita variaciones en los data factors'
     )
+    parser.add_argument(
+        '--loop-particles', action='store_true',
+        help='habilita variaciones en el numero de partículas'
+    )
 
     return parser
 
@@ -170,16 +174,26 @@ if __name__ == '__main__':
     else:
         r = np.array(['1'])
 
+    if args.loop_particles and args.filter_type == 'pf':
+        particles = np.array(['20', '50', '500'])
+    else:
+        particles = np.array(['100'])
+
     # Este diccionario se guarda en un archivo al finalizar las corridas
+    
     savedict = {'filter_type': args.filter_type,
                 'runs': args.num_runs,
                 'r': r,
                 'no-dataloop': args.no_dataloop,
                 'results': {}
                 }
+    if args.loop_particles and args.filter_type == 'pf':
+        savedict['particles'] = particles
 
     data_factor_original = args.data_factor
     filter_factor_original = args.filter_factor
+
+    count = 0
 
     for f in r:
         print('-' * 80)
@@ -196,18 +210,28 @@ if __name__ == '__main__':
         savedict['results'][f]['data_factor'] = args.data_factor
         savedict['results'][f]['filter_factor'] = args.filter_factor
 
-        E = np.zeros((args.num_runs, 3))
-        for i in range(args.num_runs):
-            print('-' * 80)
-            print('Running simulation {} of {}'.format(i + 1, args.num_runs))
-            E[i, :] = run_simulation(args)
-        savedict['results'][f]['runs'] = E
+        savedict['results'][f]['runs'] = {}
+        for p in particles:
+            args.num_particles = eval(p) 
+            E = np.zeros((args.num_runs, 3))
+            for i in range(args.num_runs):
+                count = count + 1
+                print('-' * 80)
+                print('Running simulation {} of {}'.format(count, 
+                                                            args.num_runs*len(r)*len(particles)))
+                E[i, :] = run_simulation(args)
+            if args.loop_particles and args.filter_type == 'pf':
+                savedict['results'][f]['runs'][p] = E
+            else:
+                savedict['results'][f]['runs'] = E
 
     if not args.filter_type == 'none':
-        with open('results-{filter}{factorloop}{dataloop}.json'.format(filter=args.filter_type,
-                                                                       factorloop=('-fl' if args.loop_factors else ''),
-                                                                       dataloop=('-ndl' if args.no_dataloop else '')),
-                  "w") as f:
+        with open('results-{filter}{factorloop}{dataloop}{partloop}.json'.format(
+                    filter=args.filter_type,
+                    factorloop=('-fl' if args.loop_factors else ''),
+                    dataloop=('-ndl' if args.no_dataloop else ''),
+                    partloop=('-pl' if args.loop_particles and args.filter_type == 'pf' else '')),
+                    "w") as f:
             # f.write(str(savedict))
             json.dump(savedict, f, default=default)
 
