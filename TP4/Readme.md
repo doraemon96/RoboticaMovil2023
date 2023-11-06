@@ -30,6 +30,7 @@ Por ejemplo, para correr cada ítem del TP se debe ejecutar de la siguiente mane
 ```
 
 Análogo para el ítem 4.3 a, b y c.
+
 4.d)
 ```
     localization.py pf --loop-factors --loop-particles
