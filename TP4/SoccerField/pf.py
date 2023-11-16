@@ -60,7 +60,7 @@ class ParticleFilter:
         weights: (n,) array of weights
         """
         M = self.num_particles
-        new_particles, new_weights = particles, weights
+        new_particles, new_weights = particles.copy(), weights.copy()
 
         r = np.random.uniform(0, 1 / M)
         c = weights[0]

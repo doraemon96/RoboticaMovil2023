@@ -57,8 +57,8 @@ def localize(env, policy, filt, x0, num_steps, plot=False):
 
         cond_number = np.linalg.cond(cov)
         if cond_number > 1e12:
-            # print('Badly conditioned cov (setting to identity):', cond_number)
-            # print(cov)
+            print('Badly conditioned cov (setting to identity):', cond_number)
+            print(cov)
             cov = np.eye(3)
         mahalanobis_errors[i] = \
             errors[i:i + 1, :].dot(np.linalg.inv(cov)).dot(errors[i:i + 1, :].T)[0][0]
