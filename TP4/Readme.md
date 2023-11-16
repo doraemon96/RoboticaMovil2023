@@ -18,22 +18,22 @@ Por ejemplo, para correr cada ítem del TP se debe ejecutar de la siguiente mane
 
 3.a)
 ```
-    localization.py ekf --plot
+    localization.py ekf --plot --seed 0
 ```
 3.b)
 ```
-    localization.py ekf --loop-factors
+    localization.py ekf --loop-factors --num-runs 10
 ```
 3.c)
 ```
-    localization.py ekf --loop-factors --no-dataloop
+    localization.py ekf --loop-factors --no-dataloop --num-runs 10
 ```
 
 Análogo para el ítem 4.3 a, b y c.
 
 4.d)
 ```
-    localization.py pf --loop-factors --loop-particles
+    localization.py pf --loop-factors --loop-particles --num-runs 10
 ```
 
 ## Logueo de Resultados
